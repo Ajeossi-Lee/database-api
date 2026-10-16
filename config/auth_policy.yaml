@@ -1,0 +1,21 @@
+default:
+  auth: required
+
+rules:
+  - match: "GET /api/v1/genes"
+    auth: optional
+
+  - match: "GET /api/v1/genes/{gene_id}"
+    auth: optional
+
+  - match: "POST /api/v1/genes"
+    auth: required
+    permissions: ["gene:write"]
+
+  - match: "PUT /api/v1/genes/{gene_id}"
+    auth: required
+    permissions: ["gene:write"]
+
+  - match: "DELETE /api/v1/genes/{gene_id}"
+    auth: required
+    permissions: ["gene:delete"]

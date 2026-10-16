@@ -1,0 +1,80 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+dist/
+build/
+*.egg-info/
+
+# Distribution / packaging
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+#  - https://github.com/pyinstaller/pyinstaller/wiki/FAQ#how-to-disable-hooks
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.pycache/
+
+# Visual Studio Code（共享工作区配置保留，个人本地文件继续忽略）
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.vscode-settings.json
+
+# MyPy
+.mypy_cache/
+
+# IDE
+.idea/
+.DS_Store
+
+# 环境变量与密钥。包含 .env.dev / .env.test / .env.staging / .env.prod
+.env
+.env.*
+
+# 本地数据库
+*.sqlite
+*.sqlite3
+*.db
+
+# OS generated files
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local config
+config/local_settings.py
+
+# diy
+Plan.md

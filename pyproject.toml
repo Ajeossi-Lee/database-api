@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "database-api"
+version = "0.1.0"
+description = "Database API backend with FastAPI, SQLAlchemy, Alembic, Pydantic v2, and PostgreSQL"
+authors = [{name = "Developer", email = "developer@example.com"}]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi[standard]",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg",
+    "alembic",
+    "pydantic>=2",
+    "pydantic-settings",
+    "pyyaml",
+    "pwdlib[argon2]",
+    "pyjwt[crypto]",
+    "structlog",
+    "orjson",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest", "pytest-asyncio", "pytest-cov", "httpx",
+    "polyfactory", "testcontainers[postgres]",
+    "ruff", "mypy", "pre-commit", "pip-audit",
+]
+
+[project.scripts]
+seed-rbac = "scripts.seed_rbac:main"
+
+# 应用代码在 backend/app，导入路径是 app。
+# 只从 backend 发现包，避免把仓库根目录的 alembic、config 当成顶层包。
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["app*"]
+namespaces = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "ASYNC", # flake8-async
+]
+extend-ignore = [
+    "E501", # Line too long (handled by black)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true

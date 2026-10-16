@@ -11,6 +11,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.db.base import Base, metadata
 from app.core.config import settings
 
+# Import all models so that they are registered in the Base.metadata
+# This is required for alembic to detect all models when autogenerating migrations
+from app.db.models_registry import *  # Import all models from registry
+
 # this is the Alembic Config object
 config = context.config
 

@@ -1,13 +1,26 @@
+# Authentication policy configuration
+# This file is for documentation purposes only - not used at runtime
+# Runtime policy is determined by route decorators and code-level policies
+
 default:
   auth: required
 
 rules:
+  # Health endpoints are public
+  - match: "GET /api/v1/healthz"
+    auth: public
+
+  - match: "GET /api/v1/readyz"
+    auth: public
+
+  # Public gene endpoints
   - match: "GET /api/v1/genes"
     auth: optional
 
   - match: "GET /api/v1/genes/{gene_id}"
     auth: optional
 
+  # Protected gene endpoints
   - match: "POST /api/v1/genes"
     auth: required
     permissions: ["gene:write"]
@@ -19,3 +32,31 @@ rules:
   - match: "DELETE /api/v1/genes/{gene_id}"
     auth: required
     permissions: ["gene:delete"]
+
+  # User management endpoints
+  - match: "POST /api/v1/users"
+    auth: required
+    permissions: ["user:manage"]
+
+  - match: "PUT /api/v1/users/{user_id}"
+    auth: required
+    permissions: ["user:manage"]
+
+  - match: "DELETE /api/v1/users/{user_id}"
+    auth: required
+    permissions: ["user:manage"]
+
+  - match: "GET /api/v1/users"
+    auth: required
+    permissions: ["user:read"]
+
+  - match: "GET /api/v1/users/{user_id}"
+    auth: required
+    permissions: ["user:read"]
+
+  - match: "GET /api/v1/users/me"
+    auth: required
+
+  # Login endpoint
+  - match: "POST /api/v1/users/login"
+    auth: public

@@ -4,8 +4,9 @@ from app.api.v1.router import api_router
 from app.core.logging import setup_logging
 from app.core.exceptions import register_exception_handlers
 from app.core.lifespan import lifespan
-from app.core.middleware import RequestIDMiddleware
-from app.core.security import SecurityHeadersMiddleware
+from app.core.middleware import RequestIDMiddleware, TimeoutMiddleware
+from app.core.security import SecurityHeadersMiddleware, enforce_auth_middleware
+from app.core.security_headers import SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware, SQLInjectionProtectionMiddleware, FileUploadSecurityMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -27,7 +28,11 @@ def create_app() -> FastAPI:
 
     # Add middleware
     app.add_middleware(RequestIDMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CustomSecurityHeadersMiddleware)
+    app.add_middleware(SQLInjectionProtectionMiddleware)
+    app.add_middleware(FileUploadSecurityMiddleware)
+    app.add_middleware(TimeoutMiddleware, timeout=30)  # 30 second timeout
+    app.add_middleware(enforce_auth_middleware)  # Authentication enforcement middleware
     app.add_middleware(GZipMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 

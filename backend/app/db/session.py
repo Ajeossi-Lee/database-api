@@ -2,13 +2,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.core.config import settings
 
-# Create the async engine
+# Create the async engine with proper connection pooling configuration
 engine = create_async_engine(
     settings.DATABASE_URL,
-    pool_size=20,
-    max_overflow=30,
-    pool_pre_ping=True,
-    pool_recycle=3600
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
+    pool_pre_ping=settings.DB_POOL_PRE_PING,
+    pool_recycle=settings.DB_POOL_RECYCLE,
+    echo=settings.DEBUG  # Only echo in debug mode
 )
 
 # Create the async session factory

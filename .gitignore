@@ -77,4 +77,5 @@ Thumbs.db
 config/local_settings.py
 
 # diy
+doc/
 Plan.md

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.core.config import settings
@@ -24,7 +25,7 @@ async def readiness_check(db: AsyncSession = Depends(get_db)):
     """Readiness check endpoint - verifies database connectivity."""
     try:
         # Test database connectivity
-        await db.execute("SELECT 1")
+        await db.execute(text("SELECT 1"))
 
         # Test connection pool status
         # This is a simple check - in production you might want more sophisticated checks

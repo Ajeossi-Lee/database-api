@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 from app.db.session import engine
 from app.core.config import settings
@@ -18,7 +19,7 @@ async def lifespan(app):
     # Check database connectivity
     try:
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         logger.info("Database connection successful")
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")

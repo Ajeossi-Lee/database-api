@@ -16,10 +16,10 @@ uv sync
 
 | APP_ENV | 环境文件 |
 | --- | --- |
-| `dev` | `.env.dev` |
-| `test` | `.env.test` |
-| `staging` | `.env.staging` |
-| `prod` | `.env.prod` |
+| `dev` | `envs/.env.dev` |
+| `test` | `envs/.env.test` |
+| `staging` | `envs/.env.staging` |
+| `prod` | `envs/.env.prod` |
 
 本地开发：
 

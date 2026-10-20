@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.core.schemas import BaseSchema
 
@@ -19,6 +19,19 @@ class GeneBase(BaseSchema):
     start_position: Optional[int] = Field(None, description="起始位置")
     end_position: Optional[int] = Field(None, description="结束位置")
     genomic_coordinates: Optional[dict] = Field(None, description="基因组坐标区间")
+
+    @field_validator("genomic_coordinates", mode="before")
+    @classmethod
+    def normalize_genomic_coordinates(cls, value):
+        """数据库里的整数区间读出来是 Range，响应里改成字典。"""
+        if value is None or isinstance(value, dict):
+            return value
+        lower = getattr(value, "lower", None)
+        upper = getattr(value, "upper", None)
+        bounds = getattr(value, "bounds", None)
+        if lower is None and upper is None and bounds is None:
+            return value
+        return {"lower": lower, "upper": upper, "bounds": bounds}
     annotations: Optional[dict] = Field(default_factory=dict, description="注释信息")
     functional_description: Optional[str] = Field(None, description="功能描述")
 

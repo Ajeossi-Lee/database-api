@@ -1,6 +1,11 @@
-"""应用配置。用 APP_ENV 切换四套环境文件。"""
+"""应用配置的加载入口。
+
+环境文件放在仓库根目录的 envs/.env.<环境>。
+本文件只负责按 APP_ENV 读取这些文件。接口认证和权限写在路由上。
+"""
 
 import os
+from pathlib import Path
 from typing import Literal, cast
 
 from pydantic import Field
@@ -8,6 +13,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppEnv = Literal["dev", "test", "staging", "prod"]
 _APP_ENVS: tuple[AppEnv, ...] = ("dev", "test", "staging", "prod")
+
+
+def _repo_root() -> Path:
+    """从当前文件向上找到仓库根目录（含 pyproject.toml 和 envs/）。"""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "envs").is_dir():
+            return parent
+    raise RuntimeError("找不到仓库根目录，无法定位 envs/ 目录")
+
+
+ENV_DIR = _repo_root() / "envs"
 
 
 def resolve_app_env() -> AppEnv:
@@ -20,13 +36,16 @@ def resolve_app_env() -> AppEnv:
 
 
 def resolve_env_files(app_env: AppEnv | None = None) -> tuple[str, ...]:
-    """返回要加载的环境文件。后面的文件覆盖前面的文件。"""
+    """返回 envs/ 下要加载的环境文件。后面的文件覆盖前面的文件。"""
     name = resolve_app_env() if app_env is None else app_env
-    return (
-        ".env",
-        f".env.{name}",
-        ".env.local",
-        f".env.{name}.local",
+    return tuple(
+        str(ENV_DIR / filename)
+        for filename in (
+            ".env",
+            f".env.{name}",
+            ".env.local",
+            f".env.{name}.local",
+        )
     )
 
 
@@ -39,8 +58,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
 
-    # Database
+    # Database。异步引擎要求驱动写成 postgresql+asyncpg://
     DATABASE_URL: str = Field(...)
+
     DB_POOL_SIZE: int = Field(20, description="数据库连接池大小")
     DB_MAX_OVERFLOW: int = Field(30, description="数据库连接池最大溢出数量")
     DB_POOL_RECYCLE: int = Field(3600, description="连接回收时间（秒）")
@@ -61,7 +81,6 @@ class Settings(BaseSettings):
     # Authentication
     AUTH_ENABLED: bool = Field(True)
     AUTH_DEFAULT_MODE: Literal["public", "optional", "required"] = "required"
-    AUTH_POLICY_FILE: str = "config/auth_policy.yaml"
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=list)

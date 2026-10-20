@@ -1,6 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserUpdate
 from app.core.exceptions import NotFoundException, ConflictException

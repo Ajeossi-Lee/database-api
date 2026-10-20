@@ -19,7 +19,7 @@
         "PYTHONPATH": "${workspaceFolder}/backend",
         "APP_ENV": "dev"
       },
-      "envFile": "${workspaceFolder}/.env.dev"
+      "envFile": "${workspaceFolder}/envs/.env.dev"
     }
   ]
 }

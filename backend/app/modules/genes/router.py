@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from app.core.auth_policy import AuthMode, policy
 from app.core.response import ApiResponse, PageParams, PageResult
-from app.modules.genes.deps import get_page_params
+from app.modules.genes.deps import get_gene_service, get_page_params
 from app.modules.genes.schemas import GeneCreate, GeneRead, GeneUpdate
 from app.modules.genes.service import GeneService
 
@@ -17,7 +17,7 @@ router = APIRouter()
 )
 async def get_gene(
     gene_id: str,
-    service: GeneService = Depends(GeneService),
+    service: GeneService = Depends(get_gene_service),
 ):
     """按 ID 获取基因。"""
     gene = await service.get_gene(gene_id)
@@ -27,11 +27,11 @@ async def get_gene(
 @router.get(
     "",
     response_model=ApiResponse[PageResult[GeneRead]],
-    dependencies=[Depends(policy(auth=AuthMode.OPTIONAL))],
+    dependencies=[Depends(policy(auth=AuthMode.PUBLIC))],
 )
 async def list_genes(
     page_params: PageParams = Depends(get_page_params),
-    service: GeneService = Depends(GeneService),
+    service: GeneService = Depends(get_gene_service),
 ):
     """分页列出基因。"""
     result = await service.list_genes_paginated(page_params)
@@ -45,7 +45,7 @@ async def list_genes(
 )
 async def create_gene(
     gene: GeneCreate,
-    service: GeneService = Depends(GeneService),
+    service: GeneService = Depends(get_gene_service),
 ):
     """创建基因。"""
     created_gene = await service.create_gene(gene)
@@ -60,7 +60,7 @@ async def create_gene(
 async def update_gene(
     gene_id: str,
     gene: GeneUpdate,
-    service: GeneService = Depends(GeneService),
+    service: GeneService = Depends(get_gene_service),
 ):
     """更新基因。"""
     updated_gene = await service.update_gene(gene_id, gene)
@@ -74,7 +74,7 @@ async def update_gene(
 )
 async def delete_gene(
     gene_id: str,
-    service: GeneService = Depends(GeneService),
+    service: GeneService = Depends(get_gene_service),
 ):
     """删除基因。"""
     await service.delete_gene(gene_id)

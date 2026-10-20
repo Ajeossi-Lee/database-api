@@ -1,21 +1,28 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
+from uuid import UUID
 from enum import Enum
 from fastapi import Request, HTTPException, Depends, status
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+import jwt
+from jwt.exceptions import InvalidTokenError as JWTError
+from pwdlib import PasswordHash
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth_policy import AuthMode, RoutePolicy
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedException, ForbiddenException
-from app.db.session import get_db
+from app.db.session import AsyncSessionFactory, get_db
 from app.core.logging import log_authentication_event, log_authorization_event
 import secrets
 import hashlib
 import base64
 import re
+
+# 口令哈希。导入脚本使用同一套算法
+pwd_context = PasswordHash.recommended()
 
 
 # OAuth2 scheme for password bearer
@@ -225,9 +232,36 @@ _mock_users = {
 
 
 async def get_user_by_id(user_id: str) -> Optional[User]:
-    """Get user by ID (mock implementation)."""
-    # In a real implementation, this would query the database
-    # For now, we'll return a mock user for demo purposes
+    """按 ID 获取认证用户。数据库里没有时，再查内存中的演示账号。"""
+    if not user_id:
+        return None
+
+    parsed_id = None
+    try:
+        parsed_id = UUID(str(user_id))
+    except (ValueError, TypeError, AttributeError):
+        parsed_id = None
+
+    if parsed_id is not None:
+        # 延迟导入，避免用户仓库模块加载 security 时循环引用
+        from app.modules.users.models import User as UserRecord
+
+        async with AsyncSessionFactory() as session:
+            row = await session.scalar(select(UserRecord).where(UserRecord.id == parsed_id))
+        if row is not None:
+            return User(
+                id=str(row.id),
+                username=row.username,
+                email=row.email,
+                is_active=bool(row.is_active),
+                is_superuser=bool(row.is_superuser),
+                permissions=list(row.permissions or []),
+                roles=list(row.roles or []),
+            )
+
+    for mock_user in _mock_users.values():
+        if mock_user.id == user_id:
+            return mock_user
     return None
 
 
@@ -320,28 +354,71 @@ async def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-# Policy dependency function for route decorators
-def policy(auth: AuthMode = AuthMode.REQUIRED, permissions: Optional[List[str]] = None,
-           permission_logic: str = "all", roles: Optional[List[str]] = None,
-           allow_api_key: bool = False, rate_limit: Optional[str] = None) -> Dict[str, Any]:
-    """Create a policy dependency for route decoration."""
+def _bearer_token(request: Request) -> Optional[str]:
+    """取出 Authorization 头里的 Bearer 令牌。没有或格式不对时返回空。"""
+    header = request.headers.get("authorization")
+    if not header or not header.startswith("Bearer "):
+        return None
+    return header[7:]
 
-    # Create route policy
-    route_policy = RoutePolicy(
-        auth=auth,
-        permissions=permissions or [],
-        permission_logic=permission_logic,
-        roles=roles or [],
-        allow_api_key=allow_api_key,
-        rate_limit=rate_limit
-    )
 
-    # Store policy in request state for enforcement
-    def enforce_policy(request: Request):
-        request.state.route_policy = route_policy
-        return route_policy
+async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> None:
+    """按路由上声明的策略校验登录和权限。"""
+    if route_policy.auth == AuthMode.PUBLIC:
+        request.state.user = None
+        return
 
-    return enforce_policy
+    token = _bearer_token(request)
+
+    if route_policy.auth == AuthMode.OPTIONAL:
+        request.state.user = None
+        if not token:
+            return
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                issuer=settings.JWT_ISSUER,
+                audience=settings.JWT_AUDIENCE,
+            )
+            user_id = payload.get("sub")
+            if not user_id:
+                return
+            user = await get_user_by_id(user_id)
+            if user and user.is_active:
+                request.state.user = user
+        except JWTError:
+            request.state.user = None
+        return
+
+    if route_policy.auth == AuthMode.REQUIRED:
+        if not token:
+            raise UnauthorizedException("Authorization header missing or invalid")
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                issuer=settings.JWT_ISSUER,
+                audience=settings.JWT_AUDIENCE,
+            )
+            user_id = payload.get("sub")
+            if not user_id:
+                raise UnauthorizedException("Invalid token")
+            user = await get_user_by_id(user_id)
+            if not user or not user.is_active:
+                raise UnauthorizedException("User not found or inactive")
+            request.state.user = user
+            if route_policy.permissions or route_policy.roles:
+                await check_permissions(
+                    user,
+                    route_policy.permissions,
+                    route_policy.roles,
+                    route_policy.permission_logic,
+                )
+        except JWTError:
+            raise UnauthorizedException("Invalid token")
 
 
 # Global authentication enforcement middleware
@@ -377,101 +454,26 @@ async def enforce_auth_middleware(request: Request, call_next):
                 detail="Authentication is disabled in production environment"
             )
 
-    # Get the route policy (this would normally be set by route decorators)
-    route_policy = getattr(request.state, 'route_policy', None)
+    # 路由策略由 policy() 依赖在进入接口前执行。中间件比依赖更早，这里还读不到。
+    route_policy = getattr(request.state, "route_policy", None)
+    if route_policy is None:
+        return await call_next(request)
 
-    # If no policy found, use default
-    if not route_policy:
-        route_policy = RoutePolicy(auth=settings.AUTH_DEFAULT_MODE)
-
-    # Apply the policy
     try:
-        # Handle different auth modes
-        if route_policy.auth == AuthMode.PUBLIC:
-            # Public access - no token required
-            request.state.user = None
-            response = await call_next(request)
-            return response
-
-        elif route_policy.auth == AuthMode.OPTIONAL:
-            # Optional auth - try to parse token but don't require it
-            token = request.headers.get("authorization")
-            if token and token.startswith("Bearer "):
-                token = token[7:]  # Remove "Bearer "
-                try:
-                    payload = jwt.decode(
-                        token,
-                        settings.JWT_SECRET_KEY,
-                        algorithms=[settings.JWT_ALGORITHM],
-                        issuer=settings.JWT_ISSUER,
-                        audience=settings.JWT_AUDIENCE
-                    )
-
-                    user_id = payload.get("sub")
-                    if user_id:
-                        # Get user from database/cache
-                        user = await get_user_by_id(user_id)
-                        if user and user.is_active:
-                            request.state.user = user
-                        else:
-                            request.state.user = None
-                    else:
-                        request.state.user = None
-                except JWTError:
-                    request.state.user = None
-            else:
-                request.state.user = None
-
-            response = await call_next(request)
-            return response
-
-        elif route_policy.auth == AuthMode.REQUIRED:
-            # Required auth - token must be valid
-            token = request.headers.get("authorization")
-            if not token or not token.startswith("Bearer "):
-                raise UnauthorizedException("Authorization header missing or invalid")
-
-            token = token[7:]  # Remove "Bearer "
-
-            try:
-                payload = jwt.decode(
-                    token,
-                    settings.JWT_SECRET_KEY,
-                    algorithms=[settings.JWT_ALGORITHM],
-                    issuer=settings.JWT_ISSUER,
-                    audience=settings.JWT_AUDIENCE
-                )
-
-                user_id = payload.get("sub")
-                if not user_id:
-                    raise UnauthorizedException("Invalid token")
-
-                # Get user from database/cache
-                user = await get_user_by_id(user_id)
-                if not user or not user.is_active:
-                    raise UnauthorizedException("User not found or inactive")
-
-                request.state.user = user
-
-                # Check permissions if required
-                if route_policy.permissions or route_policy.roles:
-                    await check_permissions(user, route_policy.permissions, route_policy.roles, route_policy.permission_logic)
-
-            except JWTError:
-                raise UnauthorizedException("Invalid token")
-
-            response = await call_next(request)
-            return response
-
-    except (UnauthorizedException, ForbiddenException) as e:
-        # Re-raise authentication/authorization exceptions
-        raise e
+        await apply_route_policy(request, route_policy)
+    except (UnauthorizedException, ForbiddenException):
+        raise
     except Exception as e:
-        # Handle other exceptions
         raise HTTPException(status_code=500, detail=str(e))
 
-    response = await call_next(request)
-    return response
+    return await call_next(request)
+
+
+class EnforceAuthMiddleware(BaseHTTPMiddleware):
+    """把认证策略函数挂到中间件链上。"""
+
+    async def dispatch(self, request: Request, call_next):
+        return await enforce_auth_middleware(request, call_next)
 
 
 # Login endpoint

@@ -1,22 +1,20 @@
 from typing import List, Optional
 from uuid import UUID as UUIDType
 
-from sqlalchemy import ARRAY, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import ARRAY, Integer, JSON, String, Text
 from sqlalchemy.dialects.postgresql import INT8RANGE, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 from app.db.mixins import IdMixin, TimestampMixin
 
 
 class Gene(IdMixin, TimestampMixin, Base):
-    """基因。挂在染色体上，并关联转录本和蛋白质。"""
+    """基因。染色体、转录本、蛋白质模型补齐后再建立外键。"""
 
     __tablename__ = "genes"
 
-    chromosome_id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("chromosomes.id"), nullable=False
-    )
+    chromosome_id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     symbol: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -33,14 +31,6 @@ class Gene(IdMixin, TimestampMixin, Base):
     # 注释信息
     annotations: Mapped[Optional[dict]] = mapped_column(JSON, default={})
     functional_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    chromosome: Mapped["Chromosome"] = relationship("Chromosome", back_populates="genes")
-    transcripts: Mapped[List["Transcript"]] = relationship(
-        "Transcript", back_populates="gene", cascade="all, delete-orphan"
-    )
-    proteins: Mapped[List["Protein"]] = relationship(
-        "Protein", back_populates="gene", cascade="all, delete-orphan"
-    )
 
     def __repr__(self) -> str:
         return f"<Gene(id={self.id}, name='{self.name}', chromosome_id={self.chromosome_id})>"

@@ -5,7 +5,7 @@ from app.core.logging import setup_logging
 from app.core.exceptions import register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.middleware import RequestIDMiddleware, TimeoutMiddleware
-from app.core.security import SecurityHeadersMiddleware, enforce_auth_middleware
+from app.core.security import EnforceAuthMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware, SQLInjectionProtectionMiddleware, FileUploadSecurityMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
     app.add_middleware(SQLInjectionProtectionMiddleware)
     app.add_middleware(FileUploadSecurityMiddleware)
     app.add_middleware(TimeoutMiddleware, timeout=30)  # 30 second timeout
-    app.add_middleware(enforce_auth_middleware)  # Authentication enforcement middleware
+    app.add_middleware(EnforceAuthMiddleware)  # Authentication enforcement middleware
     app.add_middleware(GZipMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
@@ -50,7 +50,8 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # Include API routes
-    app.include_router(api_router, prefix=settings.API_V1_STR)
+    # api_router 自身已带 /api/v1，这里不再重复加前缀
+    app.include_router(api_router)
 
     return app
 

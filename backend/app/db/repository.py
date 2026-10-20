@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TypeVar, Generic, List, Optional, Type
 from uuid import UUID
 from sqlalchemy import select, update, delete

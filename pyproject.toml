@@ -27,6 +27,8 @@ dependencies = [
     "structlog",
     "orjson",
     "uvicorn[standard]",
+    "prometheus-client>=0.26.0",
+    "slowapi>=0.1.10",
 ]
 
 [project.optional-dependencies]
@@ -40,7 +42,7 @@ dev = [
 seed-rbac = "scripts.seed_rbac:main"
 
 # 应用代码在 backend/app，导入路径是 app。
-# 只从 backend 发现包，避免把仓库根目录的 alembic、config 当成顶层包。
+# 只从 backend 发现包，避免把仓库根目录的其它目录当成顶层包。
 [tool.setuptools.packages.find]
 where = ["backend"]
 include = ["app*"]

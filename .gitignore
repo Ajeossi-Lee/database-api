@@ -56,7 +56,7 @@ coverage.xml
 .idea/
 .DS_Store
 
-# 环境变量与密钥。包含 .env.dev / .env.test / .env.staging / .env.prod
+# 环境变量与密钥。包含 envs/.env.dev / .env.test / .env.staging / .env.prod
 .env
 .env.*
 
@@ -79,3 +79,6 @@ config/local_settings.py
 # diy
 doc/
 Plan.md
+mock/
+scripts/
+backend/alembic

@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import UserCreate, UserUpdate
+from app.modules.users.schemas import RegisterRequest, UserCreate, UserUpdate
 from app.core.exceptions import NotFoundException, ConflictException
 from app.auth.security import authenticate_user
 
@@ -39,11 +39,26 @@ class UserService:
         if existing_user:
             raise ConflictException("User with this username already exists")
 
-        existing_email = await self.repository.get_user_by_email(user_create.email)
-        if existing_email:
-            raise ConflictException("User with this email already exists")
+        # 未填写邮箱时不按空值查重，否则多个没有邮箱的账号会互相冲突
+        if user_create.email:
+            existing_email = await self.repository.get_user_by_email(user_create.email)
+            if existing_email:
+                raise ConflictException("User with this email already exists")
 
         return await self.repository.create_user(user_create)
+
+    async def register_user(self, payload: RegisterRequest) -> User:
+        """自助注册。角色、权限和超级用户标记固定为默认值。"""
+        created = UserCreate(
+            username=payload.username,
+            email=payload.email,
+            password=payload.password,
+            is_active=True,
+            is_superuser=False,
+            permissions=[],
+            roles=[],
+        )
+        return await self.create_user(created)
 
     async def update_user(self, user_id: UUID, user_update: UserUpdate) -> Optional[User]:
         """Update a user."""

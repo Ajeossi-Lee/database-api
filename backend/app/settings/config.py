@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = Field(...)
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440
+    JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 120
     JWT_ISSUER: str = "database-api"
     JWT_AUDIENCE: str = "database-api-users"
 

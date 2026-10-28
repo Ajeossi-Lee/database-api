@@ -2,13 +2,9 @@ from app.api.v1.router import api_router
 from app.core.exceptions import register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.logging import setup_logging
-from app.middlewares.auth import EnforceAuthMiddleware
 from app.middlewares.request import RequestIDMiddleware, configure_rate_limiting
 from app.middlewares.security_headers import (
     FileUploadSecurityMiddleware,
-    SQLInjectionProtectionMiddleware,
-)
-from app.middlewares.security_headers import (
     SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware,
 )
 from app.settings.config import settings
@@ -39,9 +35,7 @@ def create_app() -> FastAPI:
     # Add middleware
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(CustomSecurityHeadersMiddleware)
-    app.add_middleware(SQLInjectionProtectionMiddleware)
     app.add_middleware(FileUploadSecurityMiddleware)
-    app.add_middleware(EnforceAuthMiddleware)  # Authentication enforcement middleware
     app.add_middleware(GZipMiddleware)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 

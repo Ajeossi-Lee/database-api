@@ -1,7 +1,6 @@
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.settings.config import settings
-import re
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -58,60 +57,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
         return response
-
-
-class SQLInjectionProtectionMiddleware(BaseHTTPMiddleware):
-    """Middleware to protect against SQL injection attacks."""
-
-    # Common SQL injection patterns
-    sql_patterns = [
-        r"(?i)\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b",
-        r"(?i)--.*$",
-        r"(?i)/\*.*?\*/",
-        r"(?i)'(.*?)'",
-        r"(?i)(?:OR|AND)\s+1=1",
-        r"(?i)(?:OR|AND)\s+1=1--",
-        r"(?i)(?:OR|AND)\s+1=1/\*.*?\*/",
-    ]
-
-    async def dispatch(self, request: Request, call_next):
-        # Check query parameters for SQL injection patterns
-        query_params = request.query_params
-        for key, value in query_params.items():
-            if self._contains_sql_injection(value):
-                # Log potential SQL injection attempt
-                print(f"Potential SQL injection detected in query param '{key}': {value}")
-                # For production, you might want to block this request
-                # For now, we'll let it pass but log it
-                pass
-
-        # Check request body for SQL injection patterns (if applicable)
-        if request.method in ["POST", "PUT", "PATCH"]:
-            try:
-                body = await request.body()
-                if body:
-                    body_str = body.decode('utf-8', errors='ignore')
-                    if self._contains_sql_injection(body_str):
-                        print(f"Potential SQL injection detected in request body: {body_str[:100]}...")
-                        # Log and potentially block in production
-                        pass
-            except Exception:
-                # If we can't read the body, continue normally
-                pass
-
-        response = await call_next(request)
-        return response
-
-    def _contains_sql_injection(self, text: str) -> bool:
-        """Check if text contains SQL injection patterns."""
-        if not text:
-            return False
-
-        text_lower = text.lower()
-        for pattern in self.sql_patterns:
-            if re.search(pattern, text_lower):
-                return True
-        return False
 
 
 class FileUploadSecurityMiddleware(BaseHTTPMiddleware):

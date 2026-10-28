@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 from app.db.session import engine
-from app.core.config import settings
+from app.settings.config import settings
 import asyncio
 import logging
 

@@ -1,6 +1,6 @@
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.core.config import settings
+from app.settings.config import settings
 import re
 
 

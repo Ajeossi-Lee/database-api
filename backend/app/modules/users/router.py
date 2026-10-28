@@ -3,9 +3,9 @@ from app.modules.users.deps import get_user_service
 from app.modules.users.service import UserService
 from app.modules.users.schemas import UserCreate, UserUpdate, UserRead, LoginRequest, LoginResponse
 from app.db.session import get_db
-from app.core.security import CurrentUser, OptionalUser, login
+from app.auth.security import CurrentUser, OptionalUser, login
 from app.core.exceptions import UnauthorizedException
-from app.core.auth_policy import AuthMode, policy
+from app.auth.policy import AuthMode, policy
 from typing import Optional
 
 

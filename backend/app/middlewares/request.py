@@ -4,7 +4,7 @@ from starlette.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from app.core.config import settings
+from app.settings.config import settings
 import time
 import logging
 

@@ -46,7 +46,7 @@ def policy(
     async def enforce_policy(request: Request) -> RoutePolicy:
         # 中间件早于路由依赖，策略必须在这里执行，不能只写到 request.state
         request.state.route_policy = route_policy
-        from app.core.security import apply_route_policy
+        from app.auth.security import apply_route_policy
 
         await apply_route_policy(request, route_policy)
         return route_policy

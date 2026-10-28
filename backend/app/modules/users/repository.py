@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.users.models import User
 from app.modules.users.schemas import UserCreate, UserUpdate
-from app.core.security import hash_password
+from app.auth.security import hash_password
 
 
 class UserRepository:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.core.config import ENV_DIR, Settings, resolve_app_env, resolve_env_files
+from app.settings.config import ENV_DIR, Settings, resolve_app_env, resolve_env_files
 
 
 def test_resolve_env_files_by_name():

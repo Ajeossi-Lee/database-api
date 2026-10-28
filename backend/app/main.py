@@ -1,12 +1,12 @@
 from fastapi import FastAPI
-from app.core.config import settings
+from app.settings.config import settings
 from app.api.v1.router import api_router
 from app.core.logging import setup_logging
 from app.core.exceptions import register_exception_handlers
 from app.core.lifespan import lifespan
-from app.core.middleware import RequestIDMiddleware, TimeoutMiddleware
-from app.core.security import EnforceAuthMiddleware
-from app.core.security_headers import SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware, SQLInjectionProtectionMiddleware, FileUploadSecurityMiddleware
+from app.middlewares.request import RequestIDMiddleware, TimeoutMiddleware
+from app.middlewares.auth import EnforceAuthMiddleware
+from app.middlewares.security_headers import SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware, SQLInjectionProtectionMiddleware, FileUploadSecurityMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware

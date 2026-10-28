@@ -8,7 +8,7 @@ import sys
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from app.core.config import settings
+from app.settings.config import settings
 from app.db.session import engine
 import logging
 

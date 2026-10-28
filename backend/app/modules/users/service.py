@@ -5,7 +5,7 @@ from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserUpdate
 from app.core.exceptions import NotFoundException, ConflictException
-from app.core.security import authenticate_user
+from app.auth.security import authenticate_user
 
 
 class UserService:

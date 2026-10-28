@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.core.auth_policy import AuthMode, policy
+from app.auth.policy import AuthMode, policy
 from app.core.response import ApiResponse, PageParams, PageResult
 from app.modules.genes.deps import get_gene_service, get_page_params
 from app.modules.genes.schemas import GeneCreate, GeneRead, GeneUpdate

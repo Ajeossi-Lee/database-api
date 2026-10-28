@@ -2,7 +2,6 @@ from typing import Optional, List
 from uuid import UUID
 from enum import Enum
 from fastapi import Request, HTTPException, Depends, status
-from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import InvalidTokenError as JWTError
@@ -11,8 +10,8 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.auth_policy import AuthMode, RoutePolicy
-from app.core.config import settings
+from app.auth.policy import AuthMode, RoutePolicy
+from app.settings.config import settings
 from app.core.exceptions import UnauthorizedException, ForbiddenException
 from app.db.session import AsyncSessionFactory, get_db
 from app.core.logging import log_authentication_event, log_authorization_event
@@ -419,61 +418,6 @@ async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> Non
                 )
         except JWTError:
             raise UnauthorizedException("Invalid token")
-
-
-# Global authentication enforcement middleware
-async def enforce_auth_middleware(request: Request, call_next):
-    """Global middleware to enforce authentication policies."""
-
-    # Skip authentication for health endpoints
-    if request.url.path in ["/healthz", "/readyz", "/metrics", "/docs", "/openapi.json"]:
-        response = await call_next(request)
-        return response
-
-    # If auth is disabled, skip enforcement
-    if not settings.AUTH_ENABLED:
-        if settings.APP_ENV != "prod":
-            # In non-production environments, allow all requests
-            # But inject a mock user for development
-            mock_user = User(
-                id="mock-user-id",
-                username="developer",
-                email="developer@example.com",
-                is_active=True,
-                is_superuser=False,
-                permissions=["*:*"],
-                roles=["admin"]
-            )
-            request.state.user = mock_user
-            response = await call_next(request)
-            return response
-        else:
-            # Production with auth disabled should fail
-            raise HTTPException(
-                status_code=500,
-                detail="Authentication is disabled in production environment"
-            )
-
-    # 路由策略由 policy() 依赖在进入接口前执行。中间件比依赖更早，这里还读不到。
-    route_policy = getattr(request.state, "route_policy", None)
-    if route_policy is None:
-        return await call_next(request)
-
-    try:
-        await apply_route_policy(request, route_policy)
-    except (UnauthorizedException, ForbiddenException):
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return await call_next(request)
-
-
-class EnforceAuthMiddleware(BaseHTTPMiddleware):
-    """把认证策略函数挂到中间件链上。"""
-
-    async def dispatch(self, request: Request, call_next):
-        return await enforce_auth_middleware(request, call_next)
 
 
 # Login endpoint

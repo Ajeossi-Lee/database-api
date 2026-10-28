@@ -27,7 +27,6 @@ dependencies = [
     "structlog",
     "orjson",
     "uvicorn[standard]",
-    "prometheus-client>=0.26.0",
     "slowapi>=0.1.10",
 ]
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
-from app.core.config import settings
+from app.settings.config import settings
 import uuid
 
 

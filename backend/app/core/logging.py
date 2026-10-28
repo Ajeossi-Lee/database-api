@@ -1,6 +1,6 @@
 import logging
 import structlog
-from app.core.config import settings
+from app.settings.config import settings
 import json
 from datetime import datetime
 

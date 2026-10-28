@@ -56,9 +56,14 @@ coverage.xml
 .idea/
 .DS_Store
 
-# 环境变量与密钥。包含 envs/.env.dev / .env.test / .env.staging / .env.prod
+# 环境变量与密钥。envs/.env.dev、.env.test、.env.staging、.env.prod 不提交。
+# envs/.env.example 是不含密钥的模板，可以提交。
 .env
 .env.*
+!envs/.env.example
+
+# 运行日志。backend/logs 下按日期生成的 log-*.log
+backend/logs/*.log
 
 # 本地数据库
 *.sqlite

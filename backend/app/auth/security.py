@@ -329,6 +329,13 @@ async def check_permissions(user: User, required_permissions: List[str],
     if required_roles:
         # User must have at least one of the required roles
         if not any(role in user.roles for role in required_roles):
+            log_authorization_event(
+                "check",
+                user_id=user.id,
+                granted=False,
+                action=permission_logic,
+                details={"message": "Insufficient role permissions"},
+            )
             raise ForbiddenException("Insufficient role permissions")
 
     # Check permissions if required
@@ -336,10 +343,24 @@ async def check_permissions(user: User, required_permissions: List[str],
         if permission_logic == "all":
             # All permissions must be satisfied
             if not all(permission in user.permissions for permission in required_permissions):
+                log_authorization_event(
+                    "check",
+                    user_id=user.id,
+                    granted=False,
+                    action=permission_logic,
+                    details={"message": "Insufficient permissions"},
+                )
                 raise ForbiddenException("Insufficient permissions")
         elif permission_logic == "any":
             # At least one permission must be satisfied
             if not any(permission in user.permissions for permission in required_permissions):
+                log_authorization_event(
+                    "check",
+                    user_id=user.id,
+                    granted=False,
+                    action=permission_logic,
+                    details={"message": "Insufficient permissions"},
+                )
                 raise ForbiddenException("Insufficient permissions")
 
 
@@ -359,6 +380,18 @@ def _bearer_token(request: Request) -> Optional[str]:
     if not header or not header.startswith("Bearer "):
         return None
     return header[7:]
+
+
+def _log_access_denied(request: Request, reason: str) -> None:
+    """记录必须登录的接口被拒绝。不记录令牌本身。"""
+    client = request.client.host if request.client else None
+    log_authentication_event(
+        "access",
+        request_id=getattr(request.state, "request_id", None),
+        ip_address=client,
+        success=False,
+        details={"path": request.url.path, "reason": reason},
+    )
 
 
 async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> None:
@@ -393,6 +426,7 @@ async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> Non
 
     if route_policy.auth == AuthMode.REQUIRED:
         if not token:
+            _log_access_denied(request, "Authorization header missing or invalid")
             raise UnauthorizedException("Authorization header missing or invalid")
         try:
             payload = jwt.decode(
@@ -404,9 +438,11 @@ async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> Non
             )
             user_id = payload.get("sub")
             if not user_id:
+                _log_access_denied(request, "Invalid token")
                 raise UnauthorizedException("Invalid token")
             user = await get_user_by_id(user_id)
             if not user or not user.is_active:
+                _log_access_denied(request, "User not found or inactive")
                 raise UnauthorizedException("User not found or inactive")
             request.state.user = user
             if route_policy.permissions or route_policy.roles:
@@ -417,6 +453,7 @@ async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> Non
                     route_policy.permission_logic,
                 )
         except JWTError:
+            _log_access_denied(request, "Invalid token")
             raise UnauthorizedException("Invalid token")
 
 
@@ -425,6 +462,11 @@ async def login(username: str, password: str) -> Token:
     """Login endpoint."""
     user = await authenticate_user(username, password)
     if not user:
+        log_authentication_event(
+            "login",
+            success=False,
+            details={"username": username},
+        )
         raise UnauthorizedException("Incorrect username or password")
 
     # Create access token
@@ -441,6 +483,12 @@ async def login(username: str, password: str) -> Token:
         expires_delta=refresh_token_expires
     )
 
+    log_authentication_event(
+        "login",
+        user_id=user.id,
+        success=True,
+        details={"username": username},
+    )
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 

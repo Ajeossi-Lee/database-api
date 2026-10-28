@@ -21,6 +21,8 @@ uv sync
 | `staging` | `envs/.env.staging` |
 | `prod` | `envs/.env.prod` |
 
+没有对应文件时，复制 `envs/.env.example` 再填写数据库地址和密钥。示例文件不含真实密钥，可以提交；四个环境文件仍被忽略。
+
 本地开发：
 
 ```powershell

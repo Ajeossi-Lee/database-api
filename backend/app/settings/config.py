@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     # Performance
     WORKER_COUNT: int = Field(4, description="工作进程数")
 
+    # 限流。关闭时不拦截请求
+    RATE_LIMIT_ENABLED: bool = False
+    RATE_LIMIT: str = Field("1000/minute", description="单个来源地址的请求频率上限")
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=resolve_env_files(),

@@ -19,6 +19,13 @@ _LEVEL_FILES = (
 )
 
 
+class _SkipConsoleOnlyFilter(logging.Filter):
+    """数据库语句只在控制台显示，不写入级别文件。"""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not record.name.startswith("sqlalchemy.engine")
+
+
 class _ExactLevelFilter(logging.Filter):
     """每个文件只收自己的级别。error 文件同时收下 critical。"""
 
@@ -121,6 +128,7 @@ def setup_logging():
     )
     for _appender, level_name, level, include_higher in _LEVEL_FILES:
         handler = _DailyLevelFileHandler(LOG_DIR, level_name)
+        handler.addFilter(_SkipConsoleOnlyFilter())
         handler.addFilter(_ExactLevelFilter(level, include_higher))
         handler.setFormatter(formatter)
         root.addHandler(handler)

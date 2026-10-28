@@ -15,7 +15,8 @@ engine = create_async_engine(
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=settings.DB_POOL_PRE_PING,
     pool_recycle=settings.DB_POOL_RECYCLE,
-    echo=settings.DEBUG  # Only echo in debug mode
+    # 调试模式下回显 SQL。日志配置会让这些语句只出现在控制台。
+    echo=settings.DEBUG
 )
 
 def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):

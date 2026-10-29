@@ -1,5 +1,6 @@
 import logging
 import sys
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 
@@ -17,6 +18,18 @@ _LEVEL_FILES = (
     ("FILEINFO", "info", logging.INFO, False),
     ("FILEDEBUG", "debug", logging.DEBUG, False),
 )
+
+
+# 当前请求 ID。没有请求时用 "-"，避免格式化缺字段。
+request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+
+
+class _RequestIdFilter(logging.Filter):
+    """把上下文中的请求 ID 写到每条日志上。"""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = request_id_var.get()
+        return True
 
 
 class _SkipConsoleOnlyFilter(logging.Filter):
@@ -97,10 +110,11 @@ def configure_structlog():
     """把 structlog 交到标准库，级别文件和控制台才能收到这些日志。"""
     structlog.configure(
         processors=[
+            structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer(),
+            structlog.processors.KeyValueRenderer(key_order=["event"]),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -123,11 +137,12 @@ def setup_logging():
             handler.close()
 
     formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(name)s %(message)s",
+        "%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     for _appender, level_name, level, include_higher in _LEVEL_FILES:
         handler = _DailyLevelFileHandler(LOG_DIR, level_name)
+        handler.addFilter(_RequestIdFilter())
         handler.addFilter(_SkipConsoleOnlyFilter())
         handler.addFilter(_ExactLevelFilter(level, include_higher))
         handler.setFormatter(formatter)
@@ -136,6 +151,7 @@ def setup_logging():
     # stdout：开发测试时在控制台查看，级别由 LOG_LEVEL 决定
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(_console_level())
+    console.addFilter(_RequestIdFilter())
     console.setFormatter(formatter)
     console._app_log_handler = True
     root.addHandler(console)

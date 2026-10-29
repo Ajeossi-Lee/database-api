@@ -1,8 +1,13 @@
 from enum import Enum
 from typing import Callable, List, Literal, Optional
 
-from fastapi import Request
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
+
+from app.settings.config import settings
+
+http_bearer = HTTPBearer(auto_error=False)
 
 
 class AuthMode(str, Enum):
@@ -25,7 +30,7 @@ class RoutePolicy(BaseModel):
 
 
 def policy(
-    auth: AuthMode = AuthMode.REQUIRED,
+    auth: Optional[AuthMode] = None,
     permissions: Optional[List[str]] = None,
     permission_logic: str = "all",
     roles: Optional[List[str]] = None,
@@ -34,8 +39,9 @@ def policy(
 ) -> Callable[[Request], RoutePolicy]:
     """生成路由依赖，把本接口的认证和授权策略放到 request.state。"""
 
+    resolved_auth = auth if auth is not None else AuthMode(settings.AUTH_DEFAULT_MODE)
     route_policy = RoutePolicy(
-        auth=auth,
+        auth=resolved_auth,
         permissions=permissions or [],
         permission_logic=permission_logic,
         roles=roles or [],
@@ -43,12 +49,23 @@ def policy(
         rate_limit=rate_limit,
     )
 
-    async def enforce_policy(request: Request) -> RoutePolicy:
+    async def _run(request: Request) -> RoutePolicy:
         # 中间件早于路由依赖，策略必须在这里执行，不能只写到 request.state
         request.state.route_policy = route_policy
         from app.auth.security import apply_route_policy
 
         await apply_route_policy(request, route_policy)
         return route_policy
+
+    if resolved_auth == AuthMode.PUBLIC:
+        return _run
+
+    async def enforce_policy(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(http_bearer),
+    ) -> RoutePolicy:
+        # credentials 只用于把 Bearer 方案写进 OpenAPI，真正校验仍在 apply_route_policy
+        del credentials
+        return await _run(request)
 
     return enforce_policy

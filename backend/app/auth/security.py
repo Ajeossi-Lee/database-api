@@ -24,7 +24,10 @@ pwd_context = PasswordHash.recommended()
 
 
 # OAuth2 scheme for password bearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/users/login",
+    auto_error=False,
+)
 
 
 class User(BaseModel):
@@ -402,18 +405,39 @@ async def _accept_access_token(request: Request, token: str) -> Optional[User]:
     return user
 
 
+def _enforce_route_rate_limit(request: Request, route_policy: RoutePolicy) -> None:
+    """按路由声明的频率限制计数。已登录时按用户，否则按来源地址。"""
+    if not route_policy.rate_limit:
+        return
+    from limits import parse
+    from slowapi.errors import RateLimitExceeded
+
+    from app.middlewares.request import limiter
+
+    user = getattr(request.state, "user", None)
+    user_id = getattr(user, "id", None) if user is not None else None
+    identity = f"user:{user_id}" if user_id else request.client.host if request.client else "unknown"
+    item = parse(route_policy.rate_limit)
+    allowed = limiter.limiter.hit(item, request.url.path, identity)
+    if not allowed:
+        # slowapi 需要带 error_message 的限额对象，不能直接传 limits 的解析结果
+        raise RateLimitExceeded(type("RouteLimit", (), {"limit": item, "error_message": str(item)})())
+
+
 async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> None:
     """按路由上声明的策略校验登录和权限。"""
     if not settings.AUTH_ENABLED:
         _reject_auth_disabled_in_prod()
         if route_policy.auth == AuthMode.PUBLIC:
             request.state.user = None
-            return
-        request.state.user = _auth_disabled_user()
+        else:
+            request.state.user = _auth_disabled_user()
+        _enforce_route_rate_limit(request, route_policy)
         return
 
     if route_policy.auth == AuthMode.PUBLIC:
         request.state.user = None
+        _enforce_route_rate_limit(request, route_policy)
         return
 
     token = _bearer_token(request)
@@ -421,25 +445,31 @@ async def apply_route_policy(request: Request, route_policy: RoutePolicy) -> Non
     if route_policy.auth == AuthMode.OPTIONAL:
         request.state.user = None
         if not token:
+            _enforce_route_rate_limit(request, route_policy)
             return
         try:
             await _accept_access_token(request, token)
         except (JWTError, UnauthorizedException):
             request.state.user = None
+        _enforce_route_rate_limit(request, route_policy)
         return
 
     if route_policy.auth == AuthMode.REQUIRED:
         if not token:
+            _enforce_route_rate_limit(request, route_policy)
             _log_access_denied(request, "Authorization header missing or invalid")
             raise UnauthorizedException("Authorization header missing or invalid")
         try:
             user = await _accept_access_token(request, token)
         except JWTError:
+            _enforce_route_rate_limit(request, route_policy)
             _log_access_denied(request, "Invalid token")
             raise UnauthorizedException("Invalid token")
         except UnauthorizedException as exc:
+            _enforce_route_rate_limit(request, route_policy)
             _log_access_denied(request, exc.message)
             raise
+        _enforce_route_rate_limit(request, route_policy)
         if user and (route_policy.permissions or route_policy.roles):
             await check_permissions(
                 user,

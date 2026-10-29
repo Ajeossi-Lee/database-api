@@ -2,8 +2,11 @@ import logging
 import time
 
 from sqlalchemy import event
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from app.core.exceptions import ConflictException
 from app.settings.config import settings
 
 logger = logging.getLogger(__name__)
@@ -45,12 +48,14 @@ AsyncSessionFactory = async_sessionmaker(
 )
 
 async def get_db():
-    """Dependency to get database session."""
+    """提供当前请求的数据库会话。成功时提交，失败时回滚。"""
     async with AsyncSessionFactory() as session:
         try:
             yield session
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            raise ConflictException("Resource conflict")
         except Exception:
             await session.rollback()
             raise
-        finally:
-            await session.close()

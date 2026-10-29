@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.auth.policy import AuthMode, policy
-from app.core.response import ApiResponse, PageParams, PageResult
+from app.core.response import ApiResponse, PageParams, PageResult, api_ok
 from app.modules.genes.deps import get_gene_service, get_page_params
 from app.modules.genes.schemas import GeneCreate, GeneRead, GeneUpdate
 from app.modules.genes.service import GeneService
@@ -17,11 +17,12 @@ router = APIRouter()
 )
 async def get_gene(
     gene_id: str,
+    request: Request,
     service: GeneService = Depends(get_gene_service),
 ):
     """按 ID 获取基因。"""
     gene = await service.get_gene(gene_id)
-    return ApiResponse(data=gene)
+    return api_ok(request, data=gene)
 
 
 @router.get(
@@ -30,12 +31,13 @@ async def get_gene(
     dependencies=[Depends(policy(auth=AuthMode.PUBLIC))],
 )
 async def list_genes(
+    request: Request,
     page_params: PageParams = Depends(get_page_params),
     service: GeneService = Depends(get_gene_service),
 ):
     """分页列出基因。"""
     result = await service.list_genes_paginated(page_params)
-    return ApiResponse(data=result)
+    return api_ok(request, data=result)
 
 
 @router.post(
@@ -45,11 +47,12 @@ async def list_genes(
 )
 async def create_gene(
     gene: GeneCreate,
+    request: Request,
     service: GeneService = Depends(get_gene_service),
 ):
     """创建基因。"""
     created_gene = await service.create_gene(gene)
-    return ApiResponse(data=created_gene)
+    return api_ok(request, data=created_gene)
 
 
 @router.put(
@@ -60,11 +63,12 @@ async def create_gene(
 async def update_gene(
     gene_id: str,
     gene: GeneUpdate,
+    request: Request,
     service: GeneService = Depends(get_gene_service),
 ):
     """更新基因。"""
     updated_gene = await service.update_gene(gene_id, gene)
-    return ApiResponse(data=updated_gene)
+    return api_ok(request, data=updated_gene)
 
 
 @router.delete(
@@ -74,8 +78,9 @@ async def update_gene(
 )
 async def delete_gene(
     gene_id: str,
+    request: Request,
     service: GeneService = Depends(get_gene_service),
 ):
     """删除基因。"""
     await service.delete_gene(gene_id)
-    return ApiResponse(message="Gene deleted successfully")
+    return api_ok(request, message="Gene deleted successfully")

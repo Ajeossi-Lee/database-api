@@ -75,11 +75,13 @@ def test_register_creates_normal_user_without_auth():
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["username"] == "ada"
-    assert body["email"] == "ada@example.com"
-    assert body["is_superuser"] is False
-    assert body["permissions"] == []
-    assert body["roles"] == []
+    assert body["code"] == 0
+    user = body["data"]
+    assert user["username"] == "ada"
+    assert user["email"] == "ada@example.com"
+    assert user["is_superuser"] is False
+    assert user["permissions"] == []
+    assert user["roles"] == []
     assert "password" not in body
     assert "hashed_password" not in body
     assert repo.last_create.is_superuser is False

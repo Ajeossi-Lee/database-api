@@ -3,10 +3,8 @@ from app.core.exceptions import register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.logging import setup_logging
 from app.middlewares.request import RequestIDMiddleware, configure_rate_limiting
-from app.middlewares.security_headers import (
-    FileUploadSecurityMiddleware,
-    SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware,
-)
+from app.middlewares.security_headers import SecurityHeadersMiddleware as CustomSecurityHeadersMiddleware
+from app.modules.health.router import router as health_router
 from app.settings.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +21,7 @@ def create_app() -> FastAPI:
     # Create FastAPI app
     app = FastAPI(
         title=settings.PROJECT_NAME,
-        openapi_url=f"{settings.API_V1_STR}/openapi.json",
+        openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.DEBUG else None,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
         lifespan=lifespan,
@@ -35,9 +33,8 @@ def create_app() -> FastAPI:
     # Add middleware
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(CustomSecurityHeadersMiddleware)
-    app.add_middleware(FileUploadSecurityMiddleware)
     app.add_middleware(GZipMiddleware)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
 
     # Add CORS middleware
     if settings.BACKEND_CORS_ORIGINS:
@@ -45,15 +42,15 @@ def create_app() -> FastAPI:
             CORSMiddleware,
             allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
             allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
         )
 
     # Register exception handlers
     register_exception_handlers(app)
 
-    # Include API routes
-    # api_router 自身已带 /api/v1，这里不再重复加前缀
+    # 探针在根路径。业务路由自身已带 /api/v1
+    app.include_router(health_router)
     app.include_router(api_router)
 
     return app

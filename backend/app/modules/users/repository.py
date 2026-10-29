@@ -49,7 +49,7 @@ class UserRepository:
 
         user = User(**user_data)
         self.session.add(user)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(user)
         return user
 
@@ -69,7 +69,7 @@ class UserRepository:
         if result.rowcount == 0:
             return None
 
-        await self.session.commit()
+        await self.session.flush()
         # Get the updated user
         return await self.get_user(user_id)
 
@@ -81,7 +81,7 @@ class UserRepository:
 
         if user:
             await self.session.delete(user)
-            await self.session.commit()
+            await self.session.flush()
             return True
         return False
 

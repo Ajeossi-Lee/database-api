@@ -10,7 +10,7 @@ from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
 
-# 前缀由 api/v1/router.py 的 include_router(..., prefix="") 提供
+# 挂在应用根路径，供探针访问 /healthz 和 /readyz
 router = APIRouter()
 
 
@@ -51,13 +51,14 @@ async def readiness_check(db: AsyncSession = Depends(get_db)):
                 "connection_pool": pool_status
             }
         )
-    except Exception as e:
-        logger.error(f"Database readiness check failed: {e}")
+    except Exception:
+        # 先回滚，避免失败语句让外层提交再抛出数据库原文
+        await db.rollback()
+        logger.exception("就绪检查失败")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "unready",
                 "service": settings.PROJECT_NAME,
-                "error": str(e)
             }
         )

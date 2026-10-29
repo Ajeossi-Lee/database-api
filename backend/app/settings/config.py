@@ -70,7 +70,6 @@ class Settings(BaseSettings):
     LOG_MIN_DURATION_STATEMENT: int = Field(1000, description="慢查询阈值（毫秒）")
 
     # Security
-    SECRET_KEY: str = Field(...)
     JWT_SECRET_KEY: str = Field(...)
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -84,12 +83,13 @@ class Settings(BaseSettings):
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=list)
+    # Host 头校验。testserver 供测试客户端使用
+    ALLOWED_HOSTS: list[str] = Field(
+        default_factory=lambda: ["localhost", "127.0.0.1", "testserver"]
+    )
 
     # Logging
     LOG_LEVEL: str = "INFO"
-
-    # Performance
-    WORKER_COUNT: int = Field(4, description="工作进程数")
 
     # 限流。关闭时不拦截请求
     RATE_LIMIT_ENABLED: bool = False

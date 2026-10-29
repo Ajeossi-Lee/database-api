@@ -1,12 +1,13 @@
-"""应用配置的加载入口。
+"""
+应用配置的加载入口。
 
 环境文件放在仓库根目录的 envs/.env.<环境>。
-本文件只负责按 APP_ENV 读取这些文件。接口认证和权限写在路由上。
+本文件只按 APP_ENV 读取对应的那一个文件。
 """
 
 import os
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,38 +16,17 @@ AppEnv = Literal["dev", "test", "staging", "prod"]
 _APP_ENVS: tuple[AppEnv, ...] = ("dev", "test", "staging", "prod")
 
 
-def _repo_root() -> Path:
-    """从当前文件向上找到仓库根目录（含 pyproject.toml 和 envs/）。"""
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "pyproject.toml").is_file() and (parent / "envs").is_dir():
-            return parent
-    raise RuntimeError("找不到仓库根目录，无法定位 envs/ 目录")
+# 读取 envs 目录
+ENV_DIR = Path(__file__).resolve().parents[3] / "envs"
 
 
-ENV_DIR = _repo_root() / "envs"
-
-
-def resolve_app_env() -> AppEnv:
-    """读取 APP_ENV，未设置时默认为 dev。非法值在启动时失败。"""
+def resolve_env_file() -> str:
+    """按 APP_ENV 返回 envs/.env.<环境>。未设置时为 dev，非法值在启动时失败。"""
     raw = os.getenv("APP_ENV", "dev").strip().lower()
     if raw not in _APP_ENVS:
         allowed = " / ".join(_APP_ENVS)
         raise ValueError(f"APP_ENV 必须是 {allowed} 之一，当前为 {raw!r}")
-    return cast(AppEnv, raw)
-
-
-def resolve_env_files(app_env: AppEnv | None = None) -> tuple[str, ...]:
-    """返回 envs/ 下要加载的环境文件。后面的文件覆盖前面的文件。"""
-    name = resolve_app_env() if app_env is None else app_env
-    return tuple(
-        str(ENV_DIR / filename)
-        for filename in (
-            ".env",
-            f".env.{name}",
-            ".env.local",
-            f".env.{name}.local",
-        )
-    )
+    return str(ENV_DIR / f".env.{raw}")
 
 
 class Settings(BaseSettings):
@@ -97,7 +77,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
-        env_file=resolve_env_files(),
+        env_file=resolve_env_file(),
         env_file_encoding="utf-8",
     )
 

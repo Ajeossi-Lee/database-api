@@ -2,22 +2,23 @@
 
 import pytest
 
-from app.settings.config import ENV_DIR, Settings, resolve_app_env, resolve_env_files
+from app.settings.config import ENV_DIR, Settings, resolve_env_file
 
 
-def test_resolve_env_files_by_name():
-    assert resolve_env_files("staging") == (
-        str(ENV_DIR / ".env"),
-        str(ENV_DIR / ".env.staging"),
-        str(ENV_DIR / ".env.local"),
-        str(ENV_DIR / ".env.staging.local"),
-    )
+def test_resolve_env_file_by_name(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("APP_ENV", "staging")
+    assert resolve_env_file() == str(ENV_DIR / ".env.staging")
+
+
+def test_resolve_env_file_defaults_to_dev(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("APP_ENV", raising=False)
+    assert resolve_env_file() == str(ENV_DIR / ".env.dev")
 
 
 def test_invalid_app_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("APP_ENV", "production")
     with pytest.raises(ValueError, match="APP_ENV"):
-        resolve_app_env()
+        resolve_env_file()
 
 
 @pytest.mark.parametrize(

@@ -39,6 +39,10 @@ uv run uvicorn app.main:app --reload
 uv run pytest
 ```
 
-测试账号密码
+
+**测试账号密码**
+
+```
 username: test
 password: test1234
+```
